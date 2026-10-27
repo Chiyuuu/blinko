@@ -5,6 +5,8 @@ import { LinkInfo } from '@shared/lib/types';
 import { RootStore } from '@/store';
 import { StorageState } from '@/store/standard/StorageState';
 import { observer } from 'mobx-react-lite';
+import { SpotifyCard } from './SpotifyCard';
+import { isSpotifyUrl } from './spotifyUtils';
 
 interface LinkPreviewProps {
   href: string;
@@ -13,9 +15,38 @@ interface LinkPreviewProps {
 }
 
 export const LinkPreview = observer(({ href, text, isBlock = false }: LinkPreviewProps) => {
+  // If it's a Spotify link, handle it with our custom Spotify card
+  if (isSpotifyUrl(href)) {
+    if (isBlock) {
+      return (
+        <div className="link-preview-block w-full my-2">
+          <SpotifyCard url={href} />
+        </div>
+      );
+    }
+
+    return (
+      <Popover 
+        placement="bottom" 
+        triggerScaleOnOpen={false} 
+      >
+        <PopoverTrigger>
+          <span className="inline-block align-middle my-0.5 cursor-pointer">
+            <SpotifyCard url={href} isInline={true} />
+          </span>
+        </PopoverTrigger>
+        <PopoverContent className="p-0 bg-transparent border-none shadow-none">
+          <div className="shadow-lg rounded-2xl overflow-hidden bg-background border border-default-200">
+            <SpotifyCard url={href} />
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   const store = RootStore.Local(() => ({
     previewData: new StorageState<LinkInfo | null>({ key: href, default: null })
-  }))
+  }));
   
   const [isOpen, setIsOpen] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -38,8 +69,8 @@ export const LinkPreview = observer(({ href, text, isBlock = false }: LinkPrevie
     const fetchData = async () => {
       try {
         if (!store.previewData.value) {
-          const info = await api.public.linkPreview.query({ url: href }, { context: { skipBatch: true } })
-          store.previewData.setValue(info)
+          const info = await api.public.linkPreview.query({ url: href }, { context: { skipBatch: true } });
+          store.previewData.setValue(info);
         }
       } catch (error) {
         console.error('Error fetching preview data:', error);
@@ -127,4 +158,4 @@ export const LinkPreview = observer(({ href, text, isBlock = false }: LinkPrevie
       </PopoverContent>
     </Popover>
   );
-}); 
+});
